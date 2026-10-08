@@ -3,13 +3,19 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { ethers } from "ethers";
 
-import { pool } from "./db/db.js";
-
 import {
   issueCredential,
   verifyCredential,
   revokeCredential,
 } from "./blockchain.js";
+
+import {
+  issueCredential as issueStellarCredential,
+  verifyCredential as verifyStellarCredential,
+  revokeCredential as revokeStellarCredential,
+} from "./stellarBlockchain.js";
+
+import { pool } from "./db/db.js";
 
 dotenv.config();
 
@@ -45,13 +51,19 @@ app.post("/api/credentials", async (req, res) => {
       holderName,
       credentialName,
       issuerName,
+      network = "ethereum",
     } = req.body;
 
     // Validate request
-    if (!holderName || !credentialName || !issuerName) {
+    if (
+      !holderName ||
+      !credentialName ||
+      !issuerName ||
+      !["ethereum", "stellar"].includes(network)
+    ) {
       return res.status(400).json({
         message:
-          "holderName, credentialName and issuerName are required",
+          "holderName, credentialName, issuerName and a valid network are required",
       });
     }
 
@@ -77,24 +89,32 @@ app.post("/api/credentials", async (req, res) => {
       SELECT *
       FROM credentials
       WHERE credential_hash = $1
+      AND network = $2
       `,
-      [credentialHash]
+      [credentialHash, network]
     );
 
     if (existingCredential.rows.length > 0) {
       return res.status(409).json({
         message:
-          "This credential has already been issued.",
+          "This credential has already been issued on this network.",
         credential: existingCredential.rows[0],
       });
     }
 
     // =================================
-    // Store proof on Ethereum
+    // Issue on selected blockchain
     // =================================
 
-    const blockchainResult =
-      await issueCredential(credentialHash);
+    let blockchainResult;
+
+    if (network === "stellar") {
+      blockchainResult =
+        await issueStellarCredential(credentialHash);
+    } else {
+      blockchainResult =
+        await issueCredential(credentialHash);
+    }
 
     // =================================
     // Store credential in PostgreSQL
@@ -108,9 +128,10 @@ app.post("/api/credentials", async (req, res) => {
         credential_name,
         issuer_name,
         credential_hash,
-        transaction_hash
+        transaction_hash,
+        network
       )
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
       `,
       [
@@ -119,6 +140,7 @@ app.post("/api/credentials", async (req, res) => {
         issuerName,
         credentialHash,
         blockchainResult.transactionHash,
+        network,
       ]
     );
 
@@ -128,7 +150,6 @@ app.post("/api/credentials", async (req, res) => {
 
     res.status(201).json({
       message: "Credential issued successfully",
-
       credential: databaseResult.rows[0],
     });
 
@@ -193,13 +214,22 @@ app.get("/api/credentials/:identifier", async (req, res) => {
     const credential = databaseResult.rows[0];
 
     // =================================
-    // Verify using the actual credential hash
+    // Verify on selected blockchain
     // =================================
 
-    const blockchainResult =
-      await verifyCredential(
-        credential.credential_hash
-      );
+    let blockchainResult;
+
+    if (credential.network === "stellar") {
+      blockchainResult =
+        await verifyStellarCredential(
+          credential.credential_hash
+        );
+    } else {
+      blockchainResult =
+        await verifyCredential(
+          credential.credential_hash
+        );
+    }
 
     // =================================
     // Return database + blockchain data
@@ -207,7 +237,6 @@ app.get("/api/credentials/:identifier", async (req, res) => {
 
     res.json({
       credential,
-
       blockchain: blockchainResult,
     });
 
@@ -231,7 +260,7 @@ app.post("/api/credentials/:hash/revoke", async (req, res) => {
     const { hash } = req.params;
 
     // =================================
-    // Check credential exists
+    // Find credential
     // =================================
 
     const existingCredential = await pool.query(
@@ -249,12 +278,21 @@ app.post("/api/credentials/:hash/revoke", async (req, res) => {
       });
     }
 
+    const credential = existingCredential.rows[0];
+
     // =================================
-    // Revoke on blockchain
+    // Revoke on selected blockchain
     // =================================
 
-    const blockchainResult =
-      await revokeCredential(hash);
+    let blockchainResult;
+
+    if (credential.network === "stellar") {
+      blockchainResult =
+        await revokeStellarCredential(hash);
+    } else {
+      blockchainResult =
+        await revokeCredential(hash);
+    }
 
     // =================================
     // Update PostgreSQL
@@ -276,9 +314,7 @@ app.post("/api/credentials/:hash/revoke", async (req, res) => {
 
     res.json({
       message: "Credential revoked successfully",
-
       credential: databaseResult.rows[0],
-
       transactionHash:
         blockchainResult.transactionHash,
     });
