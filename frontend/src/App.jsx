@@ -9,7 +9,25 @@ import {
 } from "react-router-dom";
 import "./App.css";
 
-const API_URL = "https://trust-pass.onrender.com";
+const API_URL = "https://proofpass-so4p.onrender.com";
+
+/* =========================
+   HELPERS
+========================= */
+
+function getNetworkName(network) {
+  return network === "stellar"
+    ? "Stellar Testnet"
+    : "Ethereum Sepolia";
+}
+
+function getTransactionUrl(network, transactionHash) {
+  if (network === "stellar") {
+    return `https://stellar.expert/explorer/testnet/tx/${transactionHash}`;
+  }
+
+  return `https://sepolia.etherscan.io/tx/${transactionHash}`;
+}
 
 /* =========================
    HOME
@@ -18,12 +36,12 @@ const API_URL = "https://trust-pass.onrender.com";
 function Home() {
   return (
     <main className="hero">
-      <div className="hero-orb hero-orb-one"></div>
-      <div className="hero-orb hero-orb-two"></div>
+      <div className="hero-orb hero-orb-one" />
+      <div className="hero-orb hero-orb-two" />
 
       <div className="hero-content animate-up">
         <div className="badge">
-          <span className="badge-dot"></span>
+          <span className="badge-dot" />
           Blockchain-verified credentials
         </div>
 
@@ -34,8 +52,8 @@ function Home() {
 
         <p>
           ProofPass makes certificates verifiable using blockchain
-          technology. Issue a credential, share its QR code, and verify
-          it instantly.
+          technology. Issue a credential, share its QR code, and
+          verify it instantly across Ethereum and Stellar.
         </p>
 
         <div className="hero-buttons">
@@ -51,19 +69,24 @@ function Home() {
 
         <div className="hero-trust">
           <div>
-            <span className="trust-dot"></span>
-            Secured on Ethereum
+            <span className="trust-dot" />
+            Ethereum Sepolia
           </div>
 
           <div>
-            <span className="trust-dot"></span>
+            <span className="trust-dot" />
+            Stellar Testnet
+          </div>
+
+          <div>
+            <span className="trust-dot" />
             Tamper-resistant
           </div>
         </div>
       </div>
 
       <div className="hero-card animate-card">
-        <div className="card-glow"></div>
+        <div className="card-glow" />
 
         <div className="credential-preview">
           <div className="preview-top">
@@ -76,7 +99,7 @@ function Home() {
             </span>
           </div>
 
-          <div className="preview-line"></div>
+          <div className="preview-line" />
 
           <p className="preview-label">
             CERTIFICATE OF ACHIEVEMENT
@@ -105,7 +128,7 @@ function Home() {
             </div>
           </div>
 
-          <div className="preview-corner"></div>
+          <div className="preview-corner" />
         </div>
       </div>
     </main>
@@ -126,7 +149,7 @@ function IssueCredential() {
 
         <p>
           Create a verifiable credential and anchor its proof on
-          Ethereum Sepolia.
+          Ethereum or Stellar.
         </p>
       </div>
 
@@ -139,6 +162,8 @@ function IssueForm() {
   const [holderName, setHolderName] = React.useState("");
   const [credentialName, setCredentialName] = React.useState("");
   const [issuerName, setIssuerName] = React.useState("");
+  const [network, setNetwork] = React.useState("ethereum");
+
   const [loading, setLoading] = React.useState(false);
   const [result, setResult] = React.useState(null);
   const [error, setError] = React.useState("");
@@ -162,6 +187,7 @@ function IssueForm() {
           holderName,
           credentialName,
           issuerName,
+          network,
         }),
       });
 
@@ -186,9 +212,7 @@ function IssueForm() {
   }
 
   async function copyBlockchainProof() {
-    if (!result?.credential_hash) {
-      return;
-    }
+    if (!result?.credential_hash) return;
 
     try {
       await navigator.clipboard.writeText(
@@ -204,6 +228,9 @@ function IssueForm() {
       setError("Failed to copy blockchain proof");
     }
   }
+
+  const isStellar = result?.network === "stellar";
+  const networkName = getNetworkName(result?.network);
 
   return (
     <div className="form-container">
@@ -265,9 +292,53 @@ function IssueForm() {
           />
         </div>
 
+        <div className="input-group">
+          <label>Blockchain network</label>
+
+          <div className="network-options">
+            <label className="network-option">
+              <input
+                type="radio"
+                name="network"
+                value="ethereum"
+                checked={network === "ethereum"}
+                onChange={() => setNetwork("ethereum")}
+              />
+
+              <span className="network-radio" />
+
+              <span>
+                <strong>Ethereum</strong>
+                <small>Sepolia Testnet</small>
+              </span>
+            </label>
+
+            <label className="network-option">
+              <input
+                type="radio"
+                name="network"
+                value="stellar"
+                checked={network === "stellar"}
+                onChange={() => setNetwork("stellar")}
+              />
+
+              <span className="network-radio" />
+
+              <span>
+                <strong>Stellar</strong>
+                <small>Testnet</small>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <div className="form-note">
           <span>✓</span>
-          Credential proof will be recorded on Ethereum Sepolia.
+
+          Credential proof will be recorded on{" "}
+          {network === "ethereum"
+            ? "Ethereum Sepolia."
+            : "Stellar Testnet."}
         </div>
 
         <button
@@ -277,7 +348,7 @@ function IssueForm() {
         >
           {loading ? (
             <>
-              <span className="button-spinner"></span>
+              <span className="button-spinner" />
               Issuing on blockchain...
             </>
           ) : (
@@ -309,7 +380,7 @@ function IssueForm() {
 
             <p>
               Your credential has been stored and its proof has
-              been recorded on Ethereum Sepolia.
+              been recorded on {networkName}.
             </p>
 
             <div className="issued-proof">
@@ -327,7 +398,10 @@ function IssueForm() {
                 </button>
 
                 <a
-                  href={`https://sepolia.etherscan.io/tx/${result.transaction_hash}`}
+                  href={getTransactionUrl(
+                    result.network,
+                    result.transaction_hash
+                  )}
                   target="_blank"
                   rel="noreferrer"
                   className="secondary-button"
@@ -399,9 +473,7 @@ function CredentialPage() {
       "Are you sure you want to revoke this credential?"
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       setRevoking(true);
@@ -433,47 +505,12 @@ function CredentialPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <main className="page centered">
-        <div className="loader"></div>
-        <p>Loading credential...</p>
-      </main>
-    );
-  }
-
-  if (error && !data) {
-    return (
-      <main className="page centered">
-        <div className="error-box">
-          {error}
-        </div>
-      </main>
-    );
-  }
-
-  const credential = data.credential;
-  const blockchain = data.blockchain;
-
-  const verified =
-    blockchain.valid && !credential.revoked;
-
-  /*
-    IMPORTANT:
-    The QR code contains the credential proof,
-    not the transaction hash.
-  */
-  const verificationUrl =
-    `${window.location.origin}/verify/${credential.credential_hash}`;
-
   async function copyBlockchainProof() {
-    if (!credential?.credential_hash) {
-      return;
-    }
+    if (!data?.credential?.credential_hash) return;
 
     try {
       await navigator.clipboard.writeText(
-        credential.credential_hash
+        data.credential.credential_hash
       );
 
       setCopied(true);
@@ -486,12 +523,46 @@ function CredentialPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <main className="page centered">
+        <div className="loader" />
+        <p>Loading credential...</p>
+      </main>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <main className="page centered">
+        <div className="error-box">
+          <strong>Credential unavailable</strong>
+          <span>{error}</span>
+        </div>
+      </main>
+    );
+  }
+
+  const credential = data.credential;
+  const blockchain = data.blockchain;
+
+  const verified =
+    blockchain.valid && !credential.revoked;
+
+  const networkName = getNetworkName(credential.network);
+
+  const transactionUrl = getTransactionUrl(
+    credential.network,
+    credential.transaction_hash
+  );
+
+  const verificationUrl =
+    `${window.location.origin}/verify/${credential.credential_hash}`;
+
   return (
     <main className="page">
       <div className="credential-page animate-up">
-
         <div className="credential-card">
-
           <div className="credential-header">
             <div>
               <span className="brand">
@@ -508,15 +579,12 @@ function CredentialPage() {
                   : "status revoked"
               }
             >
-              {verified
-                ? "✓ VERIFIED"
-                : "✕ REVOKED"}
+              {verified ? "✓ VERIFIED" : "✕ REVOKED"}
             </div>
           </div>
 
           <div className="credential-body">
-
-            <div className="credential-accent"></div>
+            <div className="credential-accent" />
 
             <p className="small-label">
               THIS CREDENTIAL CERTIFIES THAT
@@ -531,12 +599,9 @@ function CredentialPage() {
             <h2>{credential.credential_name}</h2>
 
             <div className="credential-info">
-
               <div>
                 <span>ISSUED BY</span>
-                <strong>
-                  {credential.issuer_name}
-                </strong>
+                <strong>{credential.issuer_name}</strong>
               </div>
 
               <div>
@@ -548,18 +613,18 @@ function CredentialPage() {
                 </strong>
               </div>
 
+              <div>
+                <span>NETWORK</span>
+                <strong>{networkName}</strong>
+              </div>
             </div>
-
           </div>
 
           <div className="credential-footer">
-
             <div className="credential-proof">
               <span>BLOCKCHAIN PROOF</span>
 
-              <code>
-                {credential.credential_hash}
-              </code>
+              <code>{credential.credential_hash}</code>
 
               <button
                 type="button"
@@ -571,7 +636,6 @@ function CredentialPage() {
             </div>
 
             <div className="qr-wrapper">
-
               <div className="qr-box">
                 <ReactQrCode
                   value={verificationUrl}
@@ -582,43 +646,33 @@ function CredentialPage() {
               </div>
 
               <span>SCAN TO VERIFY</span>
-
             </div>
-
           </div>
-
         </div>
 
         <div className="transaction-box">
-
           <div className="transaction-info">
             <span>BLOCKCHAIN TRANSACTION</span>
 
-            <strong>Ethereum Sepolia</strong>
+            <strong>{networkName}</strong>
 
-            <code>
-              {credential.transaction_hash}
-            </code>
+            <code>{credential.transaction_hash}</code>
           </div>
 
           <div className="transaction-actions">
-
             <a
-              href={`https://sepolia.etherscan.io/tx/${credential.transaction_hash}`}
+              href={transactionUrl}
               target="_blank"
               rel="noreferrer"
               className="secondary-button"
             >
-              View on Etherscan ↗
+              View Transaction ↗
             </a>
-
           </div>
-
         </div>
 
         {!credential.revoked && (
           <div className="revoke-section">
-
             <button
               className="danger-button"
               onClick={handleRevoke}
@@ -633,16 +687,12 @@ function CredentialPage() {
               Revoking a credential permanently marks it as
               invalid on the blockchain.
             </p>
-
           </div>
         )}
 
         {credential.revoked && (
           <div className="revoked-message">
-
-            <div className="revoked-icon">
-              ✕
-            </div>
+            <div className="revoked-icon">✕</div>
 
             <div>
               <strong>
@@ -654,14 +704,12 @@ function CredentialPage() {
                 credential is no longer valid.
               </p>
             </div>
-
           </div>
         )}
 
         {revokeSuccess && (
           <div className="success-box animate-success">
-            Credential successfully revoked on
-            Ethereum Sepolia.
+            Credential successfully revoked on {networkName}.
           </div>
         )}
 
@@ -670,7 +718,6 @@ function CredentialPage() {
             {error}
           </div>
         )}
-
       </div>
     </main>
   );
@@ -687,7 +734,9 @@ function VerifyPage() {
   const [error, setError] = React.useState("");
 
   async function verify() {
-    if (!hash.trim()) {
+    const proof = hash.trim();
+
+    if (!proof) {
       setError("Please enter a blockchain proof");
       return;
     }
@@ -698,7 +747,7 @@ function VerifyPage() {
 
     try {
       const response = await fetch(
-        `${API_URL}/api/credentials/${hash.trim()}`
+        `${API_URL}/api/credentials/${proof}`
       );
 
       const data = await response.json();
@@ -719,28 +768,19 @@ function VerifyPage() {
 
   return (
     <main className="page">
-
       <div className="page-header animate-up">
+        <div className="badge">VERIFIER</div>
 
-        <div className="badge">
-          VERIFIER
-        </div>
-
-        <h1>
-          Verify a credential
-        </h1>
+        <h1>Verify a credential</h1>
 
         <p>
           Enter a blockchain proof or scan a ProofPass QR
           code to verify its authenticity.
         </p>
-
       </div>
 
       <div className="verify-container">
-
         <div className="verify-search glass-card">
-
           <input
             type="text"
             placeholder="Paste blockchain proof · 0x..."
@@ -762,14 +802,13 @@ function VerifyPage() {
           >
             {loading ? (
               <>
-                <span className="button-spinner"></span>
+                <span className="button-spinner" />
                 Verifying...
               </>
             ) : (
               "Verify →"
             )}
           </button>
-
         </div>
 
         {error && (
@@ -781,14 +820,13 @@ function VerifyPage() {
         {result && (
           <VerificationResult data={result} />
         )}
-
       </div>
     </main>
   );
 }
 
 /* =========================
-   VERIFY BY HASH / QR
+   VERIFY BY QR
 ========================= */
 
 function VerifyByHash({ hash }) {
@@ -825,27 +863,29 @@ function VerifyByHash({ hash }) {
     verifyCredential();
   }, [hash]);
 
-  return (
-    <main className="page centered">
+  if (loading) {
+    return (
+      <main className="page centered">
+        <div className="loader" />
+        <p>Verifying credential...</p>
+      </main>
+    );
+  }
 
-      {loading && (
-        <>
-          <div className="loader"></div>
-          <p>Verifying credential...</p>
-        </>
-      )}
-
-      {error && (
+  if (error) {
+    return (
+      <main className="page centered">
         <div className="error-box">
           <strong>Verification failed</strong>
           <span>{error}</span>
         </div>
-      )}
+      </main>
+    );
+  }
 
-      {data && (
-        <VerificationResult data={data} />
-      )}
-
+  return (
+    <main className="page centered">
+      {data && <VerificationResult data={data} />}
     </main>
   );
 }
@@ -860,6 +900,13 @@ function VerificationResult({ data }) {
 
   const verified =
     blockchain.valid && !credential.revoked;
+
+  const networkName = getNetworkName(credential.network);
+
+  const transactionUrl = getTransactionUrl(
+    credential.network,
+    credential.transaction_hash
+  );
 
   const [copied, setCopied] = React.useState(false);
 
@@ -887,7 +934,6 @@ function VerificationResult({ data }) {
           : "verification-result revoked-result animate-success"
       }
     >
-
       <div
         className={
           verified
@@ -912,12 +958,11 @@ function VerificationResult({ data }) {
 
       <p>
         {verified
-          ? "This credential matches the proof recorded on the Ethereum blockchain."
+          ? `This credential matches the proof recorded on ${networkName}.`
           : "This credential is no longer valid."}
       </p>
 
       <div className="verification-details">
-
         <div>
           <span>Holder</span>
           <strong>{credential.holder_name}</strong>
@@ -931,6 +976,11 @@ function VerificationResult({ data }) {
         <div>
           <span>Issuer</span>
           <strong>{credential.issuer_name}</strong>
+        </div>
+
+        <div>
+          <span>Network</span>
+          <strong>{networkName}</strong>
         </div>
 
         <div>
@@ -953,29 +1003,20 @@ function VerificationResult({ data }) {
           <span>Status</span>
           <strong
             className={
-              verified
-                ? "green"
-                : "revoked-text"
+              verified ? "green" : "revoked-text"
             }
           >
-            {verified
-              ? "Verified"
-              : "Revoked"}
+            {verified ? "Verified" : "Revoked"}
           </strong>
         </div>
-
       </div>
 
       <div className="verification-proof">
-
         <span>BLOCKCHAIN PROOF</span>
 
-        <code>
-          {credential.credential_hash}
-        </code>
+        <code>{credential.credential_hash}</code>
 
         <div className="transaction-actions">
-
           <button
             type="button"
             className="secondary-button"
@@ -985,24 +1026,21 @@ function VerificationResult({ data }) {
           </button>
 
           <a
-            href={`https://sepolia.etherscan.io/tx/${credential.transaction_hash}`}
+            href={transactionUrl}
             target="_blank"
             rel="noreferrer"
             className="secondary-button"
           >
             View Transaction ↗
           </a>
-
         </div>
-
       </div>
-
     </div>
   );
 }
 
 /* =========================
-   VERIFY ROUTE
+   ROUTE
 ========================= */
 
 function VerifyRoute() {
@@ -1018,59 +1056,30 @@ function VerifyRoute() {
 function App() {
   return (
     <BrowserRouter>
-
       <nav className="navbar">
-
-        <Link
-          to="/"
-          className="logo"
-        >
+        <Link to="/" className="logo">
           Proof<span>Pass</span>
         </Link>
 
         <div className="nav-links">
-
-          <Link to="/issue">
-            Issue
-          </Link>
-
-          <Link to="/verify">
-            Verify
-          </Link>
-
+          <Link to="/issue">Issue</Link>
+          <Link to="/verify">Verify</Link>
         </div>
-
       </nav>
 
       <Routes>
-
-        <Route
-          path="/"
-          element={<Home />}
-        />
-
-        <Route
-          path="/issue"
-          element={<IssueCredential />}
-        />
-
+        <Route path="/" element={<Home />} />
+        <Route path="/issue" element={<IssueCredential />} />
         <Route
           path="/credential/:hash"
           element={<CredentialPage />}
         />
-
-        <Route
-          path="/verify"
-          element={<VerifyPage />}
-        />
-
+        <Route path="/verify" element={<VerifyPage />} />
         <Route
           path="/verify/:hash"
           element={<VerifyRoute />}
         />
-
       </Routes>
-
     </BrowserRouter>
   );
 }
